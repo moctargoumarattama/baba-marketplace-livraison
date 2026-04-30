@@ -79,9 +79,9 @@
           <label class="form-label">Statut</label>
           <select name="status" class="form-select form-select-sm">
             <option value="">Tous</option>
-            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>En attente</option>
-            <option value="delivered" {% if status_filter == 'delivered' %}selected{% endif %}>Livree</option>
-            <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Annulee</option>
+            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>{{ label_order_status('pending', current_lang) }}</option>
+            <option value="delivered" {% if status_filter == 'delivered' %}selected{% endif %}>{{ label_order_status('delivered', current_lang) }}</option>
+            <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>{{ label_order_status('cancelled', current_lang) }}</option>
           </select>
         </div>
         <div>
@@ -168,14 +168,15 @@
                 <td><div class="list-text">{{ o._shop_names|join(', ') }}</div></td>
                 <td>{{ "%.2f"|format((o.total or 0) / 100) }} MAD</td>
                 <td>
-                  {% if o.status == "pending" %}
-                    <span class="status-pill status-pending"><i class="bi bi-clock"></i> En attente</span>
-                  {% elif o.status == "delivered" %}
-                    <span class="status-pill status-delivered"><i class="bi bi-check-circle"></i> Livree</span>
-                  {% elif o.status == "cancelled" %}
-                    <span class="status-pill status-cancelled"><i class="bi bi-x-circle"></i> Annulee</span>
+                  {% set row_order_status = (o.status or '')|lower %}
+                  {% if row_order_status == "pending" %}
+                    <span class="status-pill status-pending"><i class="bi bi-clock"></i> {{ label_order_status(row_order_status, current_lang) }}</span>
+                  {% elif row_order_status == "delivered" %}
+                    <span class="status-pill status-delivered"><i class="bi bi-check-circle"></i> {{ label_order_status(row_order_status, current_lang) }}</span>
+                  {% elif row_order_status == "cancelled" %}
+                    <span class="status-pill status-cancelled"><i class="bi bi-x-circle"></i> {{ label_order_status(row_order_status, current_lang) }}</span>
                   {% else %}
-                    <span class="status-pill status-pending">{{ o.status }}</span>
+                    <span class="status-pill status-pending">{{ label_order_status(row_order_status, current_lang) }}</span>
                   {% endif %}
                 </td>
                 <td>{{ o.period.name if o.period else 'N/A' }}</td>

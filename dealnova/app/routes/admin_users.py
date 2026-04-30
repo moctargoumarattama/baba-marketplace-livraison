@@ -565,7 +565,7 @@ def admin_dashboard():
 
 @bp.route("/audience")
 def audience_dashboard():
-    if current_user.role != ADMIN_ROLE:
+    if _current_admin_role() not in {ADMIN_ROLE, MANAGER_ROLE}:
         return render_template("errors/403.html"), 403
     live_traffic = get_live_traffic_metrics()
     return render_template("admin/audience.html", live_traffic=live_traffic)
@@ -573,7 +573,7 @@ def audience_dashboard():
 
 @bp.route("/audience/live")
 def audience_dashboard_live():
-    if current_user.role != ADMIN_ROLE:
+    if _current_admin_role() not in {ADMIN_ROLE, MANAGER_ROLE}:
         return jsonify({"ok": False, "error": "forbidden"}), 403
     return jsonify(
         ok=True,

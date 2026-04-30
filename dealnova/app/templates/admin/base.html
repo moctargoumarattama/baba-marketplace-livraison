@@ -892,7 +892,7 @@
             </li>
             {% else %}
             <li class="nav-item"><a class="nav-link {% if ep == 'admin_users.admin_dashboard' %}active{% endif %}" href="{{ url_for('admin_users.admin_dashboard') }}"><i class="bi bi-grid-fill"></i><span>Dashboard</span></a></li>
-            {% if current_user.role == 'admin' %}
+            {% if current_user.role in ['admin', 'manager'] %}
             <li class="nav-item"><a class="nav-link {% if ep == 'admin_users.audience_dashboard' %}active{% endif %}" href="{{ url_for('admin_users.audience_dashboard') }}"><i class="bi bi-broadcast-pin"></i><span>Audience</span></a></li>
             {% endif %}
             <li class="nav-item"><a class="nav-link {% if 'user' in ep %}active{% endif %}" href="{{ url_for('admin_users.manage_users') }}"><i class="bi bi-people-fill"></i><span>Utilisateurs</span></a></li>

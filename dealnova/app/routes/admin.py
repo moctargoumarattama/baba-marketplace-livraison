@@ -20,7 +20,7 @@ from ..models.vendor_receipt import VendorReceipt
 from ..models.rental import RentalListing
 from ..services.audit import log_access
 from sqlalchemy.orm import selectinload
-from sqlalchemy import case, or_
+from sqlalchemy import case, or_, update
 from sqlalchemy.exc import SQLAlchemyError  # ✅ AJOUT
 from ..services.cache import bump_catalog_version
 from ..services.featured_items import (
@@ -1202,6 +1202,132 @@ def mark_delivered(oid):
     return redirect(url_for("admin.deliveries"))
 
 
+@bp.route("/orders/<int:order_id>/confirm", methods=["POST"])
+@login_required
+def confirm_order(order_id):
+    if _current_admin_role() not in {ADMIN_ROLE, MANAGER_ROLE}:
+        return jsonify(success=False, message="Acces reserve aux administrateurs."), 403
+
+    order = (
+        Order.query
+        .options(selectinload(Order.items).selectinload(OrderItem.product))
+        .get_or_404(order_id)
+    )
+    if (order.status or "").lower() != "draft":
+        return jsonify(success=False, message="Seules les commandes draft peuvent etre confirmees."), 409
+
+    try:
+        claim_result = db.session.execute(
+            update(Order)
+            .where(Order.id == order.id)
+            .where(Order.status == "draft")
+            .values(status="pending", delivery_status="new")
+        )
+        if claim_result.rowcount == 0:
+            db.session.rollback()
+            return jsonify(success=False, message="Cette commande a deja ete traitee."), 409
+
+        for item in order.items:
+            product = item.product
+            requested = int(item.quantity or 0)
+            available = int(getattr(product, "stock", 0) or 0) if product else 0
+            if product is None or available < requested:
+                db.session.rollback()
+                product_name = getattr(product, "name", "Produit indisponible") if product else "Produit indisponible"
+                return jsonify(
+                    success=False,
+                    message=(
+                        f"Stock insuffisant pour {product_name}: "
+                        f"disponible {available}, demande {requested}."
+                    ),
+                ), 409
+
+        for item in order.items:
+            product = item.product
+            result = db.session.execute(
+                update(Product)
+                .where(Product.id == product.id)
+                .where(Product.stock >= item.quantity)
+                .values(stock=Product.stock - item.quantity)
+            )
+            if result.rowcount == 0:
+                raise ValueError("stock_conflict")
+
+        vendor_totals = {}
+        for item in order.items:
+            product = item.product
+            if not product or not product.vendor_id:
+                continue
+            key = (product.vendor_id, product.shop_id)
+            vendor_totals[key] = vendor_totals.get(key, 0) + ((item.price or 0) * (item.quantity or 0))
+
+        for (vendor_id, shop_id), subtotal in vendor_totals.items():
+            comm = 0
+            db.session.add(VendorPayout(
+                order_id=order.id,
+                vendor_id=vendor_id,
+                shop_id=shop_id,
+                subtotal_cents=subtotal,
+                commission_cents=comm,
+                amount_cents=max(0, subtotal - comm),
+                status="pending",
+                is_claimable=False,
+            ))
+
+        order.status = "pending"
+        order.delivery_status = "new"
+        db.session.commit()
+        current_app.logger.info(
+            "admin_confirm_order order_id=%s admin_id=%s",
+            order.id,
+            current_user.id if current_user.is_authenticated else None,
+        )
+        return jsonify(success=True, message="Commande confirmee.")
+    except ValueError:
+        db.session.rollback()
+        return jsonify(success=False, message="Conflit stock, reessaie."), 409
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("admin_confirm_order_failed order_id=%s", order_id)
+        return jsonify(success=False, message="Erreur serveur."), 500
+
+
+@bp.route("/orders/<int:order_id>/set-claimable", methods=["POST"])
+@login_required
+def set_order_claimable(order_id):
+    if _current_admin_role() not in {ADMIN_ROLE, MANAGER_ROLE}:
+        return jsonify(success=False, message="Acces reserve aux administrateurs."), 403
+
+    order = Order.query.get_or_404(order_id)
+    if (order.status or "").lower() != "pending":
+        return jsonify(success=False, message="Seules les commandes pending peuvent etre debloquees."), 409
+
+    payouts = VendorPayout.query.filter_by(order_id=order.id).all()
+    if not payouts:
+        return jsonify(success=False, message="Aucun payout vendeur pour cette commande."), 404
+
+    try:
+        updated = 0
+        for payout in payouts:
+            if payout.status == "pending":
+                payout.is_claimable = True
+                payout.status = "claimable"
+                updated += 1
+
+        db.session.commit()
+        current_app.logger.info(
+            "admin_set_claimable order_id=%s admin_id=%s payouts=%s",
+            order.id,
+            current_user.id if current_user.is_authenticated else None,
+            updated,
+        )
+        return jsonify(success=True, message="Vendeurs notifies.")
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("admin_set_claimable_failed order_id=%s", order_id)
+        return jsonify(success=False, message="Erreur serveur."), 500
+
+
 @bp.route("/order/<int:oid>/cancel", methods=["POST"])
 def cancel_order(oid):
     order = Order.query.get_or_404(oid)
@@ -1211,11 +1337,26 @@ def cancel_order(oid):
             return jsonify(success=False, message=message), 403
         flash("Cette commande est dans une periode fermee (archive).", "warning")
         return redirect(request.args.get("next") or url_for("admin.deliveries"))
+    previous_status = (order.status or "").lower()
+    if previous_status not in {"draft", "expired", "cancelled"}:
+        for item in order.items:
+            qty = int(item.quantity or 0)
+            if qty <= 0 or not item.product_id:
+                continue
+            db.session.execute(
+                update(Product)
+                .where(Product.id == item.product_id)
+                .values(stock=Product.stock + qty)
+            )
     order.status = "cancelled"
     order.delivery_status = "canceled"
     order.delivered_at = None
     order.baba_fee_settled_at = None
     order.baba_fee_settled_by_user_id = None
+    for payout in order.vendor_payouts:
+        if payout.status not in ("paid", "cancelled"):
+            payout.status = "cancelled"
+            payout.is_claimable = False
     if order.courier is not None:
         _sync_courier_availability(order.courier)
     FinancialEntry.query.filter(

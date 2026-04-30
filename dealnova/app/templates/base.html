@@ -1408,7 +1408,8 @@
             <a href="https://www.facebook.com/share/v/1Aokzj7kPg/" aria-label="Facebook" target="_blank" rel="noopener">
               <i class="bi bi-facebook"></i>
             </a>
-            <a href="https://wa.me/212602908954" aria-label="WhatsApp" target="_blank" rel="noopener">
+            {% set footer_wa = (config.get('DELIVERY_WHATSAPP_NUMBER') or config.get('SUPPORT_WHATSAPP_NUMBER') or config.get('ADMIN_PHONE') or '') %}
+            <a href="https://wa.me/{{ footer_wa|replace('+','')|replace(' ','')|replace('-','')|replace('(','')|replace(')','') }}" aria-label="WhatsApp" target="_blank" rel="noopener">
               <i class="bi bi-whatsapp"></i>
             </a>
           </div>

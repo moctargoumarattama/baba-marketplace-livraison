@@ -851,21 +851,21 @@
           <label class="form-label">Statut commande</label>
           <select name="order_status" class="form-select">
             <option value="" {% if not order_status_filter %}selected{% endif %}>Tous</option>
-            <option value="pending" {% if order_status_filter == 'pending' %}selected{% endif %}>En attente</option>
-            <option value="delivered" {% if order_status_filter == 'delivered' %}selected{% endif %}>Livree</option>
-            <option value="cancelled" {% if order_status_filter == 'cancelled' %}selected{% endif %}>Annulee</option>
+            <option value="pending" {% if order_status_filter == 'pending' %}selected{% endif %}>{{ label_order_status('pending', current_lang) }}</option>
+            <option value="delivered" {% if order_status_filter == 'delivered' %}selected{% endif %}>{{ label_order_status('delivered', current_lang) }}</option>
+            <option value="cancelled" {% if order_status_filter == 'cancelled' %}selected{% endif %}>{{ label_order_status('cancelled', current_lang) }}</option>
           </select>
         </div>
         <div>
           <label class="form-label">Statut livraison</label>
           <select name="delivery_status" class="form-select">
             <option value="" {% if not delivery_status_filter %}selected{% endif %}>Tous</option>
-            <option value="new" {% if delivery_status_filter == 'new' %}selected{% endif %}>Nouvelle</option>
-            <option value="assigned" {% if delivery_status_filter == 'assigned' %}selected{% endif %}>Assignee</option>
-            <option value="picked_up" {% if delivery_status_filter == 'picked_up' %}selected{% endif %}>Recuperee</option>
-            <option value="delivering" {% if delivery_status_filter == 'delivering' %}selected{% endif %}>En livraison</option>
-            <option value="delivered" {% if delivery_status_filter == 'delivered' %}selected{% endif %}>Livree</option>
-            <option value="canceled" {% if delivery_status_filter == 'canceled' %}selected{% endif %}>Annulee</option>
+            <option value="new" {% if delivery_status_filter == 'new' %}selected{% endif %}>{{ label_delivery_status('new', current_lang) }}</option>
+            <option value="assigned" {% if delivery_status_filter == 'assigned' %}selected{% endif %}>{{ label_delivery_status('assigned', current_lang) }}</option>
+            <option value="picked_up" {% if delivery_status_filter == 'picked_up' %}selected{% endif %}>{{ label_delivery_status('picked_up', current_lang) }}</option>
+            <option value="delivering" {% if delivery_status_filter == 'delivering' %}selected{% endif %}>{{ label_delivery_status('delivering', current_lang) }}</option>
+            <option value="delivered" {% if delivery_status_filter == 'delivered' %}selected{% endif %}>{{ label_delivery_status('delivered', current_lang) }}</option>
+            <option value="canceled" {% if delivery_status_filter == 'canceled' %}selected{% endif %}>{{ label_delivery_status('canceled', current_lang) }}</option>
           </select>
         </div>
         <div>
@@ -1026,24 +1026,26 @@
               {% endif %}
             </td>
             <td data-label="Statut" data-order-status>
-              {% if o.status == "delivered" or o.delivery_status == "delivered" %}
-                <span class="status-pill status-delivered"><i class="bi bi-check-circle"></i> Livree</span>
-              {% elif o.status == "cancelled" or o.delivery_status == "canceled" %}
-                <span class="status-pill status-cancelled"><i class="bi bi-x-circle"></i> Annulee</span>
-              {% elif o.delivery_status == "delivering" %}
-                <span class="status-pill status-pending"><i class="bi bi-truck"></i> En livraison</span>
-                <div class="small text-muted mt-1">Commande: En attente</div>
-              {% elif o.delivery_status == "picked_up" %}
-                <span class="status-pill status-pending"><i class="bi bi-box-seam"></i> Recuperee</span>
-                <div class="small text-muted mt-1">Commande: En attente</div>
-              {% elif o.delivery_status == "assigned" %}
-                <span class="status-pill status-pending"><i class="bi bi-person-check"></i> Assignee</span>
-                <div class="small text-muted mt-1">Commande: En attente</div>
-              {% elif o.status == "pending" %}
-                <span class="status-pill status-pending"><i class="bi bi-clock"></i> En attente</span>
-                <div class="small text-muted mt-1">Livraison: Nouvelle</div>
+              {% set row_order_status = (o.status or '')|lower %}
+              {% set row_delivery_status = (o.delivery_status or '')|lower %}
+              {% if row_order_status == "delivered" or row_delivery_status == "delivered" %}
+                <span class="status-pill status-delivered"><i class="bi bi-check-circle"></i> {{ label_order_status('delivered', current_lang) }}</span>
+              {% elif row_order_status == "cancelled" or row_delivery_status == "canceled" %}
+                <span class="status-pill status-cancelled"><i class="bi bi-x-circle"></i> {{ label_order_status('cancelled', current_lang) }}</span>
+              {% elif row_delivery_status == "delivering" %}
+                <span class="status-pill status-pending"><i class="bi bi-truck"></i> {{ label_delivery_status(row_delivery_status, current_lang) }}</span>
+                <div class="small text-muted mt-1">Commande: {{ label_order_status(row_order_status, current_lang) }}</div>
+              {% elif row_delivery_status == "picked_up" %}
+                <span class="status-pill status-pending"><i class="bi bi-box-seam"></i> {{ label_delivery_status(row_delivery_status, current_lang) }}</span>
+                <div class="small text-muted mt-1">Commande: {{ label_order_status(row_order_status, current_lang) }}</div>
+              {% elif row_delivery_status == "assigned" %}
+                <span class="status-pill status-pending"><i class="bi bi-person-check"></i> {{ label_delivery_status(row_delivery_status, current_lang) }}</span>
+                <div class="small text-muted mt-1">Commande: {{ label_order_status(row_order_status, current_lang) }}</div>
+              {% elif row_order_status == "pending" %}
+                <span class="status-pill status-pending"><i class="bi bi-clock"></i> {{ label_order_status(row_order_status, current_lang) }}</span>
+                <div class="small text-muted mt-1">Livraison: {{ label_delivery_status(row_delivery_status or 'new', current_lang) }}</div>
               {% else %}
-                <span class="status-pill status-pending">{{ o.status }}</span>
+                <span class="status-pill status-pending">{{ label_order_status(row_order_status, current_lang) }}</span>
               {% endif %}
             </td>
             <td data-label="Date"><small>{{ o.created_at.strftime('%d/%m/%Y %H:%M') if o.created_at else '' }}</small></td>

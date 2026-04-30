@@ -32,6 +32,7 @@ from .services.i18n_labels import (
     label_location_status,
     label_order_status,
     label_source,
+    label_vendor_payout_status,
 )
 from .services.maintenance import init_cli_commands  # ← IMPORT AJOUTÉ
 
@@ -525,6 +526,10 @@ def create_app(config_class=Config):
             target_lang = lang or getattr(g, "lang", app.config.get("DEFAULT_LANG", "fr"))
             return label_location_status(value, target_lang)
 
+        def _label_vendor_payout_status(value, lang=None):
+            target_lang = lang or getattr(g, "lang", app.config.get("DEFAULT_LANG", "fr"))
+            return label_vendor_payout_status(value, target_lang)
+
         return {
             "current_lang": getattr(g, "lang", app.config.get("DEFAULT_LANG", "fr")),
             "supported_langs": app.config.get("LANGUAGES", ["fr", "en", "ary"]),
@@ -537,6 +542,7 @@ def create_app(config_class=Config):
             "label_order_status": _label_order,
             "label_source": _label_source,
             "label_location_status": _label_location_status,
+            "label_vendor_payout_status": _label_vendor_payout_status,
         }
 
     @app.route("/lang/<lang_code>", methods=["GET", "POST"])

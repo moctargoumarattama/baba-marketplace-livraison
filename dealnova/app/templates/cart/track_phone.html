@@ -101,7 +101,7 @@
         </form>
 
         <div class="tp-support text-center">
-          {% set support_wa = (config.get('DELIVERY_WHATSAPP_NUMBER') or config.get('SUPPORT_WHATSAPP_NUMBER') or '212770010264') %}
+          {% set support_wa = (config.get('DELIVERY_WHATSAPP_NUMBER') or config.get('SUPPORT_WHATSAPP_NUMBER') or config.get('ADMIN_PHONE') or '') %}
           <a href="https://wa.me/{{ support_wa|replace('+','')|replace(' ','') }}" class="small text-decoration-none" target="_blank" rel="noopener">
             <i class="fab fa-whatsapp me-1"></i>Support WhatsApp
           </a>

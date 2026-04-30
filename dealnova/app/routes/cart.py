@@ -1152,13 +1152,6 @@ def whatsapp_checkout():
         subtotal_cents += price_cents * qty
         items.append((product, qty, price_cents))
 
-    vendor_totals = {}
-    for product, qty, price_cents in items:
-        if not product or not product.vendor_id:
-            continue
-        key = (product.vendor_id, product.shop_id)
-        vendor_totals[key] = vendor_totals.get(key, 0) + (price_cents * qty)
-
     if not items:
         return _ajax_error("Panier vide", status=400, flash_category="warning", redirect_endpoint="shop.home")
 
@@ -1232,7 +1225,7 @@ def whatsapp_checkout():
             delivery_courier_net_cents=delivery_courier_net_cents,
             commission=commission_cents,
             vendor_net=vendor_net_cents,
-            status="pending",
+            status="draft",
             period_id=active_period.id,
             buyer_id=current_user.id if current_user.is_authenticated else None,
             guest_token=guest_token
@@ -1247,29 +1240,6 @@ def whatsapp_checkout():
                 product_id=product.id,
                 quantity=qty,
                 price=price_cents
-            ))
-
-            if hasattr(product, "stock") and product.stock is not None:
-                result = db.session.execute(
-                    update(Product)
-                    .where(Product.id == product.id)
-                    .where(Product.stock >= qty)
-                    .values(stock=Product.stock - qty)
-                )
-                if result.rowcount == 0:
-                    raise ValueError("stock_insufficient")
-
-        for (vendor_id, shop_id), subtotal in vendor_totals.items():
-            comm = 0
-            amount = max(0, subtotal - comm)
-            db.session.add(VendorPayout(
-                order_id=order.id,
-                vendor_id=vendor_id,
-                shop_id=shop_id,
-                subtotal_cents=subtotal,
-                commission_cents=comm,
-                amount_cents=amount,
-                status="pending"
             ))
 
         db.session.commit()

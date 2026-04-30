@@ -47,7 +47,6 @@ def _support_whatsapp_number() -> str:
     return (
         _digits_only(current_app.config.get("SUPPORT_WHATSAPP_NUMBER"))
         or _digits_only(current_app.config.get("ADMIN_PHONE"))
-        or "212770010264"
     )
 
 

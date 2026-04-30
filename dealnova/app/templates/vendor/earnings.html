@@ -168,31 +168,48 @@
                   {% endif %}
                 </td>
                 <td data-label="Statut" class="text-end">
+                  {% set payout = payout_map.get(order.id) %}
                   {% if receipt %}
                     <span class="pay-badge confirmed">
                       <i class="bi bi-check2-circle"></i> Recu
                     </span>
-                  {% else %}
+                  {% elif payout and payout.status == "paid" %}
+                    <span class="pay-badge confirmed">
+                      <i class="bi bi-check2-circle"></i> ✓ Payé
+                    </span>
+                  {% elif payout and payout.status == "cancelled" %}
+                    <span class="pay-badge pending">
+                      <i class="bi bi-x-circle"></i> Annulé
+                    </span>
+                  {% elif payout and payout.status == "claimed" %}
+                    <span class="pay-badge to-confirm">
+                      <i class="bi bi-hourglass-split"></i> ⏳ Virement en cours
+                    </span>
+                  {% elif payout and payout.is_claimable and payout.status == "claimable" %}
                     <div class="d-flex flex-column align-items-end gap-2">
                       {% if order.status in ('shipped', 'delivered') %}
                         <span class="pay-badge to-confirm">
                           <i class="bi bi-exclamation-circle"></i> A verifier
                         </span>
                       {% endif %}
-                      <form id="receipt-form-{{ order.id }}" method="post" action="{{ url_for('vendor.confirm_receipt', oid=order.id) }}" class="pay-form">
+                      <form id="receipt-form-{{ order.id }}" method="post" action="{{ url_for('vendor.claim_payout', payout_id=payout.id) }}" class="pay-form">
                         {% include "partials/_csrf.html" %}
                         {% if not coach_receipt.done %}
                           {% set coach_receipt.done = True %}
-                          <button class="pay-btn" type="submit" data-coach="vendor_receipt" data-coach-priority="10" data-coach-text="Astuce : cliquez sur Je suis paye seulement quand vous avez bien recu le paiement.">
-                            <i class="bi bi-check-circle"></i> Je suis paye
+                          <button class="pay-btn" type="submit" data-coach="vendor_receipt" data-coach-priority="10" data-coach-text="Astuce : cliquez sur Je suis payé seulement quand vous avez bien reçu le paiement.">
+                            ✓ Je suis payé
                           </button>
                         {% else %}
                           <button class="pay-btn" type="submit">
-                            <i class="bi bi-check-circle"></i> Je suis paye
+                            ✓ Je suis payé
                           </button>
                         {% endif %}
                       </form>
                     </div>
+                  {% else %}
+                    <button class="pay-btn" type="button" disabled style="opacity: .55; cursor: not-allowed;">
+                      ⏳ En attente admin
+                    </button>
                   {% endif %}
                 </td>
               </tr>

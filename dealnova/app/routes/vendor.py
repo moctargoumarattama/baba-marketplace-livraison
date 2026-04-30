@@ -2981,6 +2981,18 @@ def earnings():
         )
         receipt_map = {receipt.order_id: receipt for receipt in page_receipts}
 
+    payout_map = {}
+    if page_order_ids:
+        page_payouts = (
+            VendorPayout.query
+            .filter(
+                VendorPayout.vendor_id == vendor_id,
+                VendorPayout.order_id.in_(page_order_ids),
+            )
+            .all()
+        )
+        payout_map = {p.order_id: p for p in page_payouts}
+
     return render_template(
         "vendor/earnings.html",
         periods=periods,
@@ -2992,6 +3004,7 @@ def earnings():
         orders=orders,
         pagination=pagination,
         receipt_map=receipt_map,
+        payout_map=payout_map,
         order_amount_map=order_amount_map,
         total_confirmed=total_confirmed,
         total_pending=total_pending,
@@ -3039,6 +3052,34 @@ def confirm_payout(payout_id):
 
     flash("Cette action a été remplacée par « Je suis payé » sur vos commandes.", "info")
     return redirect(url_for("vendor.earnings"))
+
+
+@bp.route("/payouts/<int:payout_id>/claim", methods=["POST"])
+@login_required
+def claim_payout(payout_id):
+    if getattr(current_user, "role", None) != "vendor":
+        return jsonify(success=False, message="Acces reserve aux vendeurs."), 403
+
+    access_guard = _require_physical_vendor_access(strict_forbidden=True)
+    if access_guard:
+        return access_guard
+
+    payout = VendorPayout.query.get_or_404(payout_id)
+    if payout.vendor_id != current_user.id:
+        return jsonify(success=False, message="Acces interdit."), 403
+    if not payout.is_claimable or payout.status != "claimable":
+        return jsonify(success=False, message="Ce paiement n'est pas encore disponible."), 409
+
+    try:
+        payout.status = "claimed"
+        payout.claimed_at = datetime.utcnow()
+        payout.claimed_by_id = current_user.id
+        db.session.commit()
+        return jsonify(success=True, message="Recu confirme.")
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("vendor_claim_payout_failed payout_id=%s", payout_id)
+        return jsonify(success=False, message="Erreur serveur."), 500
 
 
 # ==================== ROUTES AJAX/API POUR VENDEURS ====================

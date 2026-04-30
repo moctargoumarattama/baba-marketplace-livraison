@@ -757,7 +757,20 @@
                       <small class="text-muted">{{ o.phone }}</small>
                     </td>
                     <td>{{ "%.2f"|format((o.total or 0) / 100) }} MAD</td>
-                    <td>{{ o.status }}</td>
+                    <td>
+                      {% set row_order_status = (o.status or '')|lower %}
+                      {% if row_order_status == 'delivered' %}
+                        <span class="badge text-bg-success">{{ label_order_status(row_order_status, current_lang) }}</span>
+                      {% elif row_order_status == 'cancelled' %}
+                        <span class="badge text-bg-danger">{{ label_order_status(row_order_status, current_lang) }}</span>
+                      {% elif row_order_status == 'draft' %}
+                        <span class="badge text-bg-info">{{ label_order_status(row_order_status, current_lang) }}</span>
+                      {% elif row_order_status == 'expired' %}
+                        <span class="badge text-bg-secondary">{{ label_order_status(row_order_status, current_lang) }}</span>
+                      {% else %}
+                        <span class="badge text-bg-warning text-dark">{{ label_order_status(row_order_status, current_lang) }}</span>
+                      {% endif %}
+                    </td>
                     <td>{{ o.period.name if o.period else 'N/A' }}</td>
                     <td>{{ o.period.closed_at.strftime('%d/%m/%Y %H:%M') if o.period and o.period.closed_at else 'N/A' }}</td>
                     <td>

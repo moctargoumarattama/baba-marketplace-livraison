@@ -14,4 +14,13 @@ dealnova/.env
 venv/
 .venv/
 env/
-ENV/
+ENV/__pycache__/
+*.pyc
+*.db
+.env
+venv/
+.venv/
+dealnova/logs/
+*.log
+*.png
+*.lnk

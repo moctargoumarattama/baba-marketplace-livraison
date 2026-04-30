@@ -8,7 +8,7 @@ class Order(db.Model):
     # Zones de livraison actuelles
     CITIES = ['Rabat', 'Salé', 'Témara', 'Kénitra']
 
-    STATUSES = ["pending", "shipped", "delivered", "cancelled", "archived"]
+    STATUSES = ["pending", "shipped", "delivered", "cancelled", "archived", "draft", "expired"]
     DELIVERY_STATUSES = ["new", "assigned", "picked_up", "delivering", "delivered", "canceled"]
 
     id = db.Column(db.Integer, primary_key=True)

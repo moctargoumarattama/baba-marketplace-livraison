@@ -6,6 +6,8 @@
 {% set is_operational = order.delivery_status in ['new', 'assigned', 'picked_up', 'delivering'] %}
 {% set is_closed_period = order.period and order.period.status == 'closed' %}
 {% set is_special_delivery = order._delivery_source == 'special' %}
+{% set order_status = (order.status or '')|lower %}
+{% set delivery_status = (order.delivery_status or '')|lower %}
 {% set back_url = request.args.get('next') or (url_for('admin.pricing_settings', section='archives', archive_period_id=order.period_id) if is_closed_period else (url_for('admin.deliveries') if is_operational else url_for('admin.all_orders'))) %}
 {% set back_label = 'retour liste' %}
 {% if '/deliveries/archives' in back_url %}
@@ -56,30 +58,30 @@
               <h6 class="text-muted">Workflow admin</h6>
               <div>
                 <strong>Statut commande:</strong>
-                {% if order.status == 'delivered' %}
-                  <span class="badge text-bg-success">Livree</span>
-                {% elif order.status == 'cancelled' %}
-                  <span class="badge text-bg-danger">Annulee</span>
-                {% elif order.status == 'pending' %}
-                  <span class="badge text-bg-warning text-dark">En attente</span>
+                {% if order_status == 'delivered' %}
+                  <span class="badge text-bg-success">{{ label_order_status(order_status, current_lang) }}</span>
+                {% elif order_status == 'cancelled' %}
+                  <span class="badge text-bg-danger">{{ label_order_status(order_status, current_lang) }}</span>
+                {% elif order_status == 'draft' %}
+                  <span class="badge text-bg-info">{{ label_order_status(order_status, current_lang) }}</span>
+                {% elif order_status == 'expired' %}
+                  <span class="badge text-bg-secondary">{{ label_order_status(order_status, current_lang) }}</span>
+                {% elif order_status == 'pending' %}
+                  <span class="badge text-bg-warning text-dark">{{ label_order_status(order_status, current_lang) }}</span>
                 {% else %}
-                  <span class="badge text-bg-secondary">{{ order.status }}</span>
+                  <span class="badge text-bg-secondary">{{ label_order_status(order_status, current_lang) }}</span>
                 {% endif %}
               </div>
               <div class="mt-1">
                 <strong>Statut livraison:</strong>
-                {% if order.delivery_status == 'delivered' %}
-                  <span class="badge text-bg-success">Livree</span>
-                {% elif order.delivery_status == 'canceled' %}
-                  <span class="badge text-bg-danger">Annulee</span>
-                {% elif order.delivery_status == 'delivering' %}
-                  <span class="badge text-bg-primary">En livraison</span>
-                {% elif order.delivery_status == 'picked_up' %}
-                  <span class="badge text-bg-primary">Recuperee</span>
-                {% elif order.delivery_status == 'assigned' %}
-                  <span class="badge text-bg-primary">Assignee</span>
+                {% if delivery_status == 'delivered' %}
+                  <span class="badge text-bg-success">{{ label_delivery_status(delivery_status, current_lang) }}</span>
+                {% elif delivery_status in ['canceled', 'cancelled'] %}
+                  <span class="badge text-bg-danger">{{ label_delivery_status(delivery_status, current_lang) }}</span>
+                {% elif delivery_status in ['delivering', 'picked_up', 'assigned'] %}
+                  <span class="badge text-bg-primary">{{ label_delivery_status(delivery_status, current_lang) }}</span>
                 {% else %}
-                  <span class="badge text-bg-warning text-dark">Nouvelle</span>
+                  <span class="badge text-bg-warning text-dark">{{ label_delivery_status(delivery_status or 'new', current_lang) }}</span>
                 {% endif %}
               </div>
               <div class="mt-1">
@@ -292,10 +294,17 @@
                   <td>{{ p.vendor.username if p.vendor else '-' }}</td>
                   <td>{{ '%.2f'|format((p.amount_cents or 0) / 100) }} MAD</td>
                   <td>
-                    {% if p.status == "paid" %}
-                      <span class="badge text-bg-success">Paye</span>
+                    {% set payout_status = (p.status or '')|lower %}
+                    {% if payout_status == "paid" %}
+                      <span class="badge text-bg-success">{{ label_vendor_payout_status(payout_status, current_lang) }}</span>
+                    {% elif payout_status == "cancelled" %}
+                      <span class="badge text-bg-danger">{{ label_vendor_payout_status(payout_status, current_lang) }}</span>
+                    {% elif payout_status == "claimed" %}
+                      <span class="badge text-bg-info">{{ label_vendor_payout_status(payout_status, current_lang) }}</span>
+                    {% elif payout_status == "claimable" %}
+                      <span class="badge text-bg-primary">{{ label_vendor_payout_status(payout_status, current_lang) }}</span>
                     {% else %}
-                      <span class="badge text-bg-warning">En attente</span>
+                      <span class="badge text-bg-warning text-dark">{{ label_vendor_payout_status(payout_status, current_lang) }}</span>
                     {% endif %}
                   </td>
                   <td>
@@ -338,7 +347,24 @@
                 Cette commande est en suivi de la periode ouverte.
               {% endif %}
             </div>
+            {% set has_pending_payout = payouts and (payouts|selectattr('status', 'equalto', 'pending')|list|length > 0) %}
             <div class="d-flex flex-wrap gap-2">
+              {% if order.status == "draft" %}
+                <form method="post" action="{{ url_for('admin.confirm_order', order_id=order.id) }}" data-order-detail-action="true" data-success-message="Commande confirmée." data-confirm-submit="Confirmer cette commande ? Le stock sera décrémenté.">
+                  {% include "admin/partials/_csrf.html" %}
+                  <button class="btn btn-sm btn-success" type="submit">
+                    ✓ Confirmer la commande
+                  </button>
+                </form>
+              {% endif %}
+              {% if order.status == "pending" and has_pending_payout %}
+                <form method="post" action="{{ url_for('admin.set_order_claimable', order_id=order.id) }}" data-order-detail-action="true" data-success-message="Vendeurs notifiés." data-confirm-submit="Débloquer le paiement pour les vendeurs de cette commande ?">
+                  {% include "admin/partials/_csrf.html" %}
+                  <button class="btn btn-sm btn-info text-white" type="submit">
+                    💳 Débloquer paiement vendeur
+                  </button>
+                </form>
+              {% endif %}
               {% if is_operational %}
                 <form method="post" action="{{ url_for('admin.mark_delivered', oid=order.id, next=request.full_path) }}">
                   {% include "admin/partials/_csrf.html" %}
@@ -362,5 +388,73 @@
     </div>
   </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  (function () {
+    "use strict";
+
+    function showAdminAlert(message, category) {
+      var host = document.getElementById("adminContent");
+      if (!host || !message) return;
+      var alert = document.createElement("div");
+      alert.className = "alert-custom alert-" + (category || "info");
+      alert.setAttribute("role", "alert");
+      alert.setAttribute("data-autodismiss", "true");
+      alert.innerHTML = '<i class="bi bi-' + (category === "success" ? "check-circle-fill" : "x-circle-fill") + '" aria-hidden="true"></i><span></span>';
+      alert.querySelector("span").textContent = message;
+      host.insertBefore(alert, host.firstChild);
+    }
+
+    try {
+      var pendingFlash = window.sessionStorage.getItem("adminOrderDetailFlash");
+      if (pendingFlash) {
+        window.sessionStorage.removeItem("adminOrderDetailFlash");
+        showAdminAlert(pendingFlash, "success");
+      }
+    } catch (_err) {}
+
+    document.addEventListener("submit", function (event) {
+      var form = event.target && event.target.closest ? event.target.closest('form[data-order-detail-action="true"]') : null;
+      if (!form || event.defaultPrevented) return;
+
+      event.preventDefault();
+      var button = event.submitter || form.querySelector('[type="submit"]');
+      var confirmMsg = form.getAttribute("data-confirm-submit");
+      if (confirmMsg && !window.confirm(confirmMsg)) {
+        if (button) button.disabled = false;
+        return;
+      }
+      if (button) button.disabled = true;
+
+      fetch(form.action, {
+        method: "POST",
+        body: new FormData(form),
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "Accept": "application/json"
+        },
+        credentials: "same-origin"
+      })
+        .then(function (response) {
+          return response.json().catch(function () { return {}; }).then(function (data) {
+            if (!response.ok || data.success === false) {
+              throw new Error(data.message || "Action impossible.");
+            }
+            try {
+              window.sessionStorage.setItem("adminOrderDetailFlash", form.getAttribute("data-success-message") || data.message || "Action effectuee.");
+            } catch (_err) {}
+            window.location.reload();
+          });
+        })
+        .catch(function (error) {
+          showAdminAlert(error.message || "Action impossible.", "danger");
+          if (button) button.disabled = false;
+        });
+    });
+  })();
+</script>
 {% endblock %}
 

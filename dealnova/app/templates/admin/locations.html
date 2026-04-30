@@ -240,7 +240,7 @@
                   <div class="cn">Est.: {{ cents_to_dh(ac) }}</div>
                 </td>
                 <td class="hide-sm" style="color:var(--muted)">{{ listing.view_count }}</td>
-                <td><span class="bs bs-{{ listing.status }}">{{ listing.status }}</span></td>
+                <td><span class="bs bs-{{ listing.status }}">{{ label_location_status(listing.status, current_lang) }}</span></td>
                 <td class="hide-sm" style="font-size:.72rem;color:var(--muted);white-space:nowrap">{{ format_dt(listing.expires_at) }}</td>
                 <td>
                   <div style="display:flex;gap:.28rem;">
@@ -317,7 +317,7 @@
                     <div class="cn" style="color:var(--muted)">N/A</div>
                   {% endif %}
                 </td>
-                <td><span class="bs bs-{{ archive.closed_reason if archive.closed_reason in ['taken','expired'] else 'taken' }}">{{ archive.closed_reason }}</span></td>
+                <td><span class="bs bs-{{ archive.closed_reason if archive.closed_reason in ['taken','expired'] else 'taken' }}">{{ label_location_status(archive.closed_reason, current_lang) }}</span></td>
                 <td class="hide-sm" style="color:var(--muted)">{{ archive.archived_view_count }}</td>
                 <td class="hide-sm" style="font-size:.72rem;color:var(--muted);white-space:nowrap">{{ format_dt(archive.closed_at) }}</td>
               </tr>

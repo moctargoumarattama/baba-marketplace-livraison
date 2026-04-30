@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from ..extensions import db
 from ..models.platform_settings import PlatformSettings
 from ..models.order_period import OrderPeriod
-from ..models.rental import RentalArchive, RentalListing, RentalMedia
+from ..models.rental import RENTAL_LISTING_DURATION_DAYS, RentalArchive, RentalListing, RentalMedia
 from ..models.shop import Shop
 from ..models.user import User
 from ..services.audit import log_access
@@ -52,9 +52,9 @@ def _is_ajax_request() -> bool:
 
 def _support_whatsapp_number() -> str:
     raw = (
-        current_app.config.get("SUPPORT_WHATSAPP_NUMBER")
+        current_app.config.get("RENTAL_VISIT_WHATSAPP_NUMBER")
+        or current_app.config.get("SUPPORT_WHATSAPP_NUMBER")
         or current_app.config.get("ADMIN_PHONE")
-        or "212770010264"
     )
     return "".join(ch for ch in str(raw) if ch.isdigit())
 
@@ -739,6 +739,7 @@ def owner_location_new():
             if len(owner_fee_text) > 255:
                 raise ValueError("Texte frais propriétaire trop long (max 255 caractères).")
 
+            created_at = datetime.utcnow()
             listing = RentalListing(
                 owner_id=current_user.id,
                 shop_id=shop_id,
@@ -761,8 +762,8 @@ def owner_location_new():
                 platform_commission_fixed_cents=0,
                 status="active",
                 is_active=True,
-                created_at=datetime.utcnow(),
-                expires_at=datetime.utcnow() + timedelta(days=6),
+                created_at=created_at,
+                expires_at=created_at + timedelta(days=RENTAL_LISTING_DURATION_DAYS),
             )
             db.session.add(listing)
             db.session.flush()
